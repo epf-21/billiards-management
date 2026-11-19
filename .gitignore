@@ -1,0 +1,30 @@
+# Entorno (direnv / nix)
+.envrc
+.direnv/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Editores / sistema operativo
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+
+# Builds y artefactos
+/build/
+/dist/
+/bin/
+coverage.out
+*.test
+
+# Logs
+*.log
+
+# Temporales
+tmp/
+*.tmp

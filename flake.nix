@@ -1,5 +1,5 @@
 {
-  description = "Go development environment";
+  description = "Development environment for billiards management";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
@@ -12,16 +12,21 @@
     {
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
+          # Go
           go
           gopls
           golangci-lint
           delve
+
+          # Flutter
+          flutter
+
+          # Docker
+          docker
+          docker-compose
         ];
 
-        shellHook = ''
-          echo "🐹 Entorno de desarrollo Go activado"
-          go version
-        '';
+        shellHook = ''echo "Entorno de desarrollo activo"'';
       };
     };
 }

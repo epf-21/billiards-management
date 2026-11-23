@@ -24,7 +24,12 @@ billiards-management/
 │   └── backups/                  # Scripts de respaldo de PostgreSQL
 │
 ├── docs/
+│   ├── architecture.md           # Visión completa del sistema
+│   ├── estructure.md             # Estructura de código del MVP (este documento)
 │   ├── mvp.md                    # Alcance del MVP y mejoras futuras
+│   ├── billiards.dbml            # Modelo de datos completo
+│   ├── billiards_modelo.dbml     # Modelo detallado
+│   ├── billiards_mvp.dbml        # Modelo del MVP
 │   └── decisiones/               # ADRs: decisiones técnicas y su motivo
 │
 ├── scripts/                      # Utilidades: generar cliente, seeds, etc.
@@ -42,6 +47,8 @@ billiards-management/
 | `infra/` | Todo lo operativo: contenedores, despliegue y respaldos. |
 | `docs/` | Documentación del proyecto y decisiones de arquitectura. |
 | `scripts/` | Scripts auxiliares invocados desde el `Makefile`. |
+
+> `architecture.md` describe la visión completa del producto (incluye módulos futuros y un Web Admin en Astro). Este documento describe únicamente la estructura de código del **MVP**, que se opera desde el POS en Flutter.
 
 ---
 
@@ -290,7 +297,7 @@ apps/pos/
 │       └── shared/
 │           ├── config/               # URL de la API, entornos
 │           ├── di/                   # Inyección de dependencias (providers)
-│           ├── network/             # Cliente HTTP, interceptores, WebSocket
+│           ├── network/              # Cliente HTTP, interceptores, WebSocket
 │           ├── errors/               # Failures y excepciones comunes
 │           └── utils/                # Utilidades de infraestructura
 │

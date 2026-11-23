@@ -49,7 +49,8 @@ El MVP incluye únicamente lo necesario para operar un día completo de trabajo 
 
 - Inicio de sesión con usuario y contraseña.
 - **Administrador**: configura tarifas, productos, mesas y usuarios, y ve todos los reportes.
-- **Cajero/mesero**: opera mesas, registra consumos y cobra.
+- **Encargado**: supervisa la operación y al personal de la sucursal; controla productos, existencias y movimientos.
+- **Cajero**: opera mesas, registra consumos y cobra.
 
 ## 3. Fuera del alcance del MVP
 
@@ -69,13 +70,13 @@ Lo siguiente no se construye en esta primera versión, pero el diseño de datos 
 
 ## 5. Entidades principales del modelo de datos
 
-- Usuario (con rol)
-- Mesa y TipoDeMesa (con tarifa)
-- Sesión de juego (mesa, hora de inicio, pausas, hora de fin)
-- Producto y Categoría
-- Consumo (producto, cantidad, sesión)
-- Cuenta/Venta y Pago
-- Caja (apertura, cierre, movimientos)
+- Usuario (con rol) → feature `users`
+- Mesa y TipoDeMesa (con tarifa) → feature `tables`
+- Sesión de juego (mesa, hora de inicio, pausas, hora de fin) → feature `sessions`
+- Producto y Categoría → feature `products`
+- Consumo (producto, cantidad, sesión) → feature `consumptions`
+- Cuenta/Venta y Pago → feature `cash`
+- Caja (apertura, cierre, movimientos) → feature `cash`
 
 ## 6. Criterios de aceptación del MVP
 

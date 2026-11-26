@@ -25,11 +25,8 @@ billiards-management/
 │
 ├── docs/
 │   ├── architecture.md           # Visión completa del sistema
-│   ├── estructure.md             # Estructura de código del MVP (este documento)
-│   ├── mvp.md                    # Alcance del MVP y mejoras futuras
-│   ├── billiards.dbml            # Modelo de datos completo
-│   ├── billiards_modelo.dbml     # Modelo detallado
-│   ├── billiards_mvp.dbml        # Modelo del MVP
+│   ├── estructure.md             # Estructura de código (este documento)
+│   ├── billiards_modelo.dbml     # Modelo de datos detallado en español
 │   └── decisiones/               # ADRs: decisiones técnicas y su motivo
 │
 ├── scripts/                      # Utilidades: generar cliente, seeds, etc.
@@ -432,9 +429,12 @@ scripts/
 
 ## 8. Orden sugerido para empezar
 
-1. Crear el esqueleto de carpetas y el `Makefile`.
-2. Levantar PostgreSQL con Docker Compose.
-3. Escribir las primeras migraciones (tables, table types, users).
-4. Implementar la feature `tables` completa en el api (domain → application → infrastructure → presentation) como plantilla para las demás.
-5. Definir `openapi.yaml`, generar `api_client` y construir la feature `tables` en `pos`.
-6. Repetir con `sessions`, `consumptions` y `cash`.
+1. Dejar lista la base: migraciones, constraints de integridad y seed de arranque.
+2. Implementar `auth` y sucursales: login, refresh, selección de sucursal y middleware.
+3. Implementar el dominio de pricing y sesión con pruebas, sin HTTP ni base de datos.
+4. Implementar `tables` y `rates` como primer slice vertical del backend.
+5. Implementar `sessions` sobre el dominio probado.
+6. Implementar `consumptions` y `cash` con cierre de turno.
+7. Construir el POS mínimo sobre esos endpoints.
+
+El primer slice que debe funcionar de punta a punta es: login, elegir sucursal, abrir turno, abrir sesión, finalizar, cobrar y cerrar turno con esperado contra contado.

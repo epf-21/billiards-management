@@ -58,7 +58,10 @@ db-reset: ## Borra el esquema, reaplica migraciones y datos iniciales
 
 .PHONY: seed
 seed: ## Carga los datos iniciales
-	psql "$(DATABASE_URL)" -f $(SEEDS_DIR)/0001_roles.sql
+	@for f in $(SEEDS_DIR)/*.sql; do \
+		echo "psql $$f"; \
+		psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f "$$f" || exit 1; \
+	done
 
 .PHONY: sqlc
 sqlc: ## Regenera el código de acceso a datos con sqlc

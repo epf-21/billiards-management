@@ -107,7 +107,7 @@ El sistema estará organizado en módulos de negocio independientes a nivel lóg
 
 Cada módulo será responsable de sus reglas, operaciones y datos. La separación inicial será interna al backend, sin requerir microservicios.
 
-Este documento describe la **visión completa** del sistema. La implementación inicial (MVP) cubre un subconjunto de módulos, detallado en `estructure.md` y `mvp.md`. Correspondencia:
+Este documento describe la **visión completa** del sistema. La implementación inicial cubre un subconjunto de módulos, detallado en `estructure.md` y en las decisiones de alcance de `docs/decisiones/`. Correspondencia:
 
 | Feature del MVP | Módulo(s) de arquitectura |
 |---|---|
@@ -170,6 +170,8 @@ Responsabilidades:
 - Historial de cambios.
 
 Las sesiones deben conservar la tarifa aplicada al momento de su creación o cálculo, evitando que modificaciones posteriores alteren importes históricos.
+
+Regla vigente para el MVP: solo existen dos modalidades, **tiempo libre** y **tiempo fijo**. La tarifa es por hora y se cobra de forma proporcional a los minutos jugados. Ejemplo: una mesa a 15 Bs por hora, jugada 30 minutos, cobra 7.50 Bs. No se cobra por fracciones de 15 o 30 minutos ni se redondea a la unidad; el importe se guarda con dos decimales.
 
 ### 5.4. Point of Sale & Sales
 
@@ -705,7 +707,7 @@ La convención del proyecto es usar **decimales de precisión fija**:
 NUMERIC(12, 2)
 ```
 
-En Go se representa con un tipo decimal (por ejemplo `shopspring/decimal` o `pgtype.Numeric`), nunca con `float64`. La moneda por defecto es `BOB`, configurable por sucursal.
+En Go se representa con un tipo decimal (por ejemplo `shopspring/decimal` o `pgtype.Numeric`), nunca con `float64`. La moneda por defecto es `BOB`, configurable por sucursal. El cobro por tiempo se calcula por minuto y se redondea a dos decimales al generar la cuenta; no se redondea por tramo ni a la unidad.
 
 ### 10.3. Snapshots históricos
 
@@ -1088,10 +1090,7 @@ billiards-management/
 ├── docs/
 │   ├── architecture.md
 │   ├── estructure.md
-│   ├── mvp.md
-│   ├── billiards.dbml
 │   ├── billiards_modelo.dbml
-│   ├── billiards_mvp.dbml
 │   └── decisiones/
 │
 ├── scripts/

@@ -70,8 +70,8 @@ make pos-run
 ## Documentación
 
 - [`docs/architecture.md`](docs/architecture.md): visión completa del sistema.
-- [`docs/mvp.md`](docs/mvp.md): alcance del MVP, requisitos y mejoras futuras.
 - [`docs/estructure.md`](docs/estructure.md): estructura de código, capas y convenciones.
+- [`docs/decisiones/`](docs/decisiones/): decisiones de arquitectura y cobro.
 - [`contracts/openapi.yaml`](contracts/openapi.yaml): contrato de la API.
 
 ## Estado del proyecto

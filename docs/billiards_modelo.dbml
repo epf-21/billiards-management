@@ -46,7 +46,7 @@ Enum tipo_movimiento_caja {
 // [F2]
 Enum tipo_descuento {
   porcentaje  [note: 'valor es un porcentaje entre 1 y 100']
-  monto_fijo  [note: 'valor es un monto en la unidad de la moneda']
+  monto_fijo  [note: 'valor es un monto con dos decimales']
 }
 
 // [F2]
@@ -147,7 +147,7 @@ Table configuracion_negocio {
 
 Table roles {
   id uuid [pk, default: `gen_random_uuid()`]
-  nombre varchar(50) [not null, unique, note: 'Datos iniciales: administrador, cajero']
+  nombre varchar(50) [not null, unique, note: 'Datos iniciales: admin, manager, cashier']
   descripcion varchar(200)
 }
 
@@ -229,11 +229,12 @@ Table tarifas {
   id uuid [pk, default: `gen_random_uuid()`]
   sucursal_id uuid [not null, ref: > sucursales.id] // [F1]
   nombre varchar(60) [not null, note: 'Ej: "Mesa nueva", "Mesa estandar". Unico dentro de la sucursal']
-  precio_hora integer [not null, note: 'Precio de una hora de juego, en la unidad de la moneda. Solo editable cuando no hay sesiones activas ni en pausa']
+  precio_hora numeric(12,2) [not null, note: 'Precio de una hora de juego, con dos decimales. Solo editable cuando no hay sesiones activas ni en pausa']
   creado_en timestamptz [not null, default: `now()`]
   actualizado_en timestamptz [not null, default: `now()`]
 
-  Note: 'Una tarifa puede ser compartida por varias mesas de la misma sucursal: cambiar su precio actualiza el de todas ellas a la vez. Formula del cobro por tiempo (igual para las dos modalidades): minutos jugados x precio_hora / 60, redondeado hacia arriba a la unidad entera. Ej: 20 Bs/h x 20 min = 6,67 -> 7 Bs. Si los montos se guardan en centavos, se redondea hacia arriba al multiplo de 100.'
+
+  Note: 'Una tarifa puede ser compartida por varias mesas de la misma sucursal: cambiar su precio actualiza el de todas ellas a la vez. Formula del cobro por tiempo (igual para las dos modalidades): minutos jugados x precio_hora / 60, redondeado a dos decimales. Ej: 15 Bs/h x 30 min = 7,50 Bs. No se cobra por fracciones ni se redondea a la unidad.'
 }
 
 Table mesas {
@@ -244,6 +245,7 @@ Table mesas {
   estado estado_mesa [not null, default: 'libre']
   creado_en timestamptz [not null, default: `now()`]
   actualizado_en timestamptz [not null, default: `now()`]
+
 }
 
 // ---------------------------------------------------------------
@@ -252,6 +254,7 @@ Table mesas {
 
 Table reservas {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la mesa']
   mesa_id uuid [not null, ref: > mesas.id]
   cliente_id uuid [ref: > clientes.id, note: 'Opcional: puede reservar alguien no registrado']
   inicia_en timestamptz [not null]
@@ -269,6 +272,7 @@ Table reservas {
 
 Table sesiones_juego {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la mesa']
   mesa_id uuid [not null, ref: > mesas.id, note: 'Mesa actual; cada cambio queda registrado en cambios_mesa']
   abierta_por_usuario_id uuid [not null, ref: > usuarios.id]
   cliente_id uuid [ref: > clientes.id, note: '[F3] Opcional. Cliente que jugo la sesion']
@@ -282,6 +286,9 @@ Table sesiones_juego {
   notas text [note: 'Anotaciones opcionales de la sesion (texto libre). NULL si no hay ninguna']
   creado_en timestamptz [not null, default: `now()`]
   actualizado_en timestamptz [not null, default: `now()`]
+
+
+  Note: 'Solo puede haber una sesion activa o en pausa por mesa.'
 }
 
 Table pausas_sesion {
@@ -293,12 +300,13 @@ Table pausas_sesion {
 
 Table cambios_mesa {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la sesion y de las mesas']
   sesion_juego_id uuid [not null, ref: > sesiones_juego.id]
   mesa_origen_id uuid [not null, ref: > mesas.id]
   mesa_destino_id uuid [not null, ref: > mesas.id, note: 'Debe ser de la misma sucursal que mesa_origen']
   cambiada_en timestamptz [not null]
   minutos_jugados integer [not null, note: 'Minutos jugados en mesa_origen en ese tramo (desde el cambio anterior o el inicio), sin contar pausas']
-  monto_acumulado integer [not null, note: 'Monto del tramo = minutos_jugados x precio_hora de mesa_origen / 60, redondeado hacia arriba a la unidad entera. Es el precio de lista: el efecto de una promocion se calcula aparte en descuentos']
+  monto_acumulado numeric(12,2) [not null, note: 'Monto del tramo = minutos_jugados x precio_hora de mesa_origen / 60, redondeado a dos decimales. Es el precio de lista: el efecto de una promocion se calcula aparte en descuentos']
 
 }
 
@@ -316,8 +324,8 @@ Table productos {
   sucursal_id uuid [not null, ref: > sucursales.id] // [F1]
   categoria_id uuid [not null, ref: > categorias_producto.id]
   nombre varchar(120) [not null]
-  precio integer [not null, note: 'Precio de venta actual']
-  costo integer [note: '[F4] Costo de compra, para calcular la ganancia. Se actualiza con la ultima compra']
+  precio numeric(12,2) [not null, note: 'Precio de venta actual']
+  costo numeric(12,2) [note: '[F4] Costo de compra, para calcular la ganancia. Se actualiza con la ultima compra']
   stock integer [not null, default: 0, note: 'Saldo actual. Debe coincidir con la suma de movimientos_inventario']
   es_servicio boolean [not null, default: false, note: '[F4] true = sin stock (ej. alquiler de tacos)']
   creado_en timestamptz [not null, default: `now()`]
@@ -326,10 +334,11 @@ Table productos {
 
 Table consumos {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la sesion']
   sesion_juego_id uuid [not null, ref: > sesiones_juego.id]
   producto_id uuid [not null, ref: > productos.id]
   cantidad integer [not null, default: 1]
-  precio_unitario integer [not null, note: 'Copia de productos.precio al momento de la venta']
+  precio_unitario numeric(12,2) [not null, note: 'Copia de productos.precio al momento de la venta']
   creado_por_usuario_id uuid [not null, ref: > usuarios.id]
   creado_en timestamptz [not null, default: `now()`]
 }
@@ -350,7 +359,7 @@ Table compras {
   sucursal_id uuid [not null, ref: > sucursales.id]
   proveedor_id uuid [ref: > proveedores.id]
   fecha date [not null]
-  total integer [not null]
+  total numeric(12,2) [not null]
   movimiento_caja_id uuid [unique, ref: - movimientos_caja.id, note: 'Solo si se pago con efectivo del cajon (genera un movimiento tipo retiro). NULL si se pago por otro medio']
   notas text
   registrado_por_usuario_id uuid [not null, ref: > usuarios.id]
@@ -364,7 +373,7 @@ Table detalle_compras {
   compra_id uuid [not null, ref: > compras.id]
   producto_id uuid [not null, ref: > productos.id]
   cantidad integer [not null]
-  costo_unitario integer [not null]
+  costo_unitario numeric(12,2) [not null]
 }
 
 Table movimientos_inventario {
@@ -391,35 +400,42 @@ Table turnos_caja {
   abierto_por_usuario_id uuid [not null, ref: > usuarios.id, note: 'Debe estar asignado a la sucursal (usuarios_sucursales)']
   responsable_nombre varchar(120) [note: '[F1] Quien atiende fisicamente el turno. Obligatorio cuando la cuenta que lo abrio es compartida (usuarios.es_compartida)']
   estado estado_turno_caja [not null, default: 'abierto']
-  monto_apertura integer [not null, default: 0, note: 'Efectivo con el que se abre el turno']
-  monto_cierre integer [note: 'Efectivo contado al cerrar, se compara con el total esperado (ver movimientos_caja)']
+  monto_apertura numeric(12,2) [not null, default: 0, note: 'Efectivo con el que se abre el turno']
+  monto_cierre numeric(12,2) [note: 'Efectivo contado al cerrar, se compara con el total esperado (ver movimientos_caja)']
   abierto_en timestamptz [not null, default: `now()`]
   cerrado_en timestamptz
+
+
+  Note: 'Solo puede haber un turno abierto por sucursal.'
 }
 
 Table cuentas {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la sesion y del turno']
   sesion_juego_id uuid [not null, unique, note: 'Una cuenta por sesion']
   turno_caja_id uuid [ref: > turnos_caja.id, note: 'Turno en el que se cobra la cuenta. Debe ser de la misma sucursal que la mesa de la sesion (validar en el backend)']
   cliente_id uuid [ref: > clientes.id, note: '[F3] Cliente al que se cobra; necesario para pagar con saldo o a credito']
-  monto_tiempo integer [not null, note: 'Cobro por tiempo a precio de lista: suma del monto de cada tramo (cada uno ya redondeado hacia arriba). Se calcula y guarda al finalizar la sesion, asi un cambio de tarifa nunca altera cuentas antiguas']
-  monto_consumos integer [not null, default: 0, note: 'Cobro por productos']
-  monto_descuento integer [not null, default: 0, note: '[F2] Suma de descuentos.monto_aplicado de la sesion (manuales y de promocion). Nunca puede superar monto_tiempo + monto_consumos']
-  monto_total integer [not null, note: 'tiempo + consumos - descuento, guardado para que las cuentas antiguas no cambien']
+  monto_tiempo numeric(12,2) [not null, note: 'Cobro por tiempo a precio de lista: suma del monto de cada tramo (cada uno ya redondeado a dos decimales). Se calcula y guarda al finalizar la sesion, asi un cambio de tarifa nunca altera cuentas antiguas']
+  monto_consumos numeric(12,2) [not null, default: 0, note: 'Cobro por productos']
+  monto_descuento numeric(12,2) [not null, default: 0, note: '[F2] Suma de descuentos.monto_aplicado de la sesion (manuales y de promocion). Nunca puede superar monto_tiempo + monto_consumos']
+  monto_total numeric(12,2) [not null, note: 'tiempo + consumos - descuento, guardado para que las cuentas antiguas no cambien']
   estado estado_cuenta [not null, default: 'pendiente']
   anulada_por_usuario_id uuid [ref: > usuarios.id, note: '[F2] Quien anulo la cuenta. Requiere permiso cuentas.anular']
   motivo_anulacion varchar(200) [note: '[F2] Obligatorio si estado = anulada']
   anulada_en timestamptz [note: '[F2]']
   creado_en timestamptz [not null, default: `now()`]
 
+
   Note: '[F2] Anular una cuenta ya pagada no borra sus pagos (quedan como historial): el efectivo devuelto al cliente se registra como un movimiento de caja tipo devolucion enlazado a la cuenta. Si se pago con saldo, se devuelve el saldo (movimientos_saldo tipo reembolso); si quedo a credito, el credito pasa a anulado. Los reportes de ingresos excluyen las cuentas anuladas. Toda anulacion queda en registro_auditoria.'
 }
 
 Table pagos {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la cuenta y del turno']
+  turno_caja_id uuid [not null, ref: > turnos_caja.id, note: 'Turno en el que se cobra el pago']
   cuenta_id uuid [not null, ref: > cuentas.id]
   metodo metodo_pago [not null]
-  monto integer [not null, note: 'Una cuenta puede tener varios pagos (metodos mixtos o cuenta dividida)']
+  monto numeric(12,2) [not null, note: 'Una cuenta puede tener varios pagos (metodos mixtos o cuenta dividida)']
   referencia varchar(80) [note: '[F2] Numero de comprobante del QR o de la transferencia. NULL en efectivo']
   pagado_en timestamptz [not null, default: `now()`]
   creado_por_usuario_id uuid [not null, ref: > usuarios.id]
@@ -433,19 +449,20 @@ Ref: cuentas.sesion_juego_id - sesiones_juego.id
 
 Table descuentos {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la sesion']
   sesion_juego_id uuid [not null, ref: > sesiones_juego.id, note: 'El descuento se aplica por sesion de juego (por mesa)']
   origen origen_descuento [not null, default: 'manual', note: '[F6] manual = lo registra una persona; promocion_dia lo genera el sistema al finalizar la sesion']
   promocion_id uuid [ref: > promociones.id, note: '[F6] Solo si origen = promocion_dia']
   tipo tipo_descuento [not null, note: 'En los descuentos generados por el sistema es siempre monto_fijo']
-  valor integer [not null, note: 'Porcentaje (1-100) o monto fijo en la unidad de la moneda, segun tipo. En los generados por el sistema es el monto ya calculado']
+  valor numeric(12,2) [not null, note: 'Porcentaje (1-100) o monto fijo con dos decimales, segun tipo. En los generados por el sistema es el monto ya calculado']
   aplica_a aplica_descuento [not null, default: 'total', note: 'Sobre el tiempo, sobre los consumos o sobre el total. Los generados por el sistema aplican siempre al tiempo']
-  monto_aplicado integer [note: 'Descuento ya calculado en moneda. NULL mientras la sesion esta en curso; se llena al generar la cuenta']
+  monto_aplicado numeric(12,2) [note: 'Descuento ya calculado en moneda. NULL mientras la sesion esta en curso; se llena al generar la cuenta']
   motivo varchar(200) [not null, note: 'En los generados por el sistema se completa solo (ej. Promocion: Martes de 12 Bs la hora)']
   autorizado_por_usuario_id uuid [ref: > usuarios.id, note: 'Quien lo autoriza (permiso descuentos.autorizar). El backend puede exigirlo a partir de cierto monto o porcentaje. No aplica a los generados por el sistema']
   creado_por_usuario_id uuid [not null, ref: > usuarios.id, note: 'En los generados por el sistema, quien finalizo la sesion']
   creado_en timestamptz [not null, default: `now()`]
 
-  Note: 'Una sesion puede tener varios descuentos y los manuales se pueden registrar mientras esta en curso. Al generar la cuenta, cada descuento se calcula sobre su base original (sin encadenarlos) y se redondea hacia abajo a la unidad entera; la suma pasa a cuentas.monto_descuento. Cada descuento queda en registro_auditoria.'
+  Note: 'Una sesion puede tener varios descuentos y los manuales se pueden registrar mientras esta en curso. Al generar la cuenta, cada descuento se calcula sobre su base original (sin encadenarlos) y se redondea a dos decimales; la suma pasa a cuentas.monto_descuento. Cada descuento queda en registro_auditoria.'
 }
 
 // ---------------------------------------------------------------
@@ -454,13 +471,15 @@ Table descuentos {
 
 Table movimientos_caja {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal del turno']
   turno_caja_id uuid [not null, ref: > turnos_caja.id]
   tipo tipo_movimiento_caja [not null]
-  monto integer [not null, note: 'Siempre positivo; el signo lo da el tipo']
+  monto numeric(12,2) [not null, note: 'Siempre positivo; el signo lo da el tipo']
   motivo varchar(200) [not null]
   cuenta_id uuid [ref: > cuentas.id, note: 'Obligatorio si tipo = devolucion']
   usuario_id uuid [not null, ref: > usuarios.id]
   creado_en timestamptz [not null, default: `now()`]
+
 
   Note: 'Efectivo esperado al cierre del turno = monto_apertura + pagos en efectivo + recargas de saldo en efectivo + abonos de credito en efectivo + inscripciones a torneos en efectivo (todos del turno) + ingresos - retiros - gastos - devoluciones. Se compara con turnos_caja.monto_cierre para detectar diferencias. Solo se pueden registrar movimientos en un turno abierto.'
 }
@@ -478,7 +497,7 @@ Table gastos {
   id uuid [pk, default: `gen_random_uuid()`]
   sucursal_id uuid [not null, ref: > sucursales.id]
   categoria_id uuid [not null, ref: > categorias_gasto.id]
-  monto integer [not null]
+  monto numeric(12,2) [not null]
   descripcion varchar(200) [not null]
   fecha date [not null, note: 'Fecha en que se hizo el gasto']
   movimiento_caja_id uuid [unique, ref: - movimientos_caja.id, note: 'Solo si se pago con efectivo del cajon (genera un movimiento tipo gasto). NULL si se pago por otro medio']
@@ -495,8 +514,8 @@ Table gastos {
 Table paquetes_prepago {
   id uuid [pk, default: `gen_random_uuid()`]
   nombre varchar(80) [not null, unique]
-  precio integer [not null, note: 'Lo que paga el cliente']
-  saldo_otorgado integer [not null, note: 'Saldo que recibe (puede ser mayor al precio, ej. paga 100 y recibe 110)']
+  precio numeric(12,2) [not null, note: 'Lo que paga el cliente']
+  saldo_otorgado numeric(12,2) [not null, note: 'Saldo que recibe (puede ser mayor al precio, ej. paga 100 y recibe 110)']
   vigencia_dias integer [note: 'NULL = el saldo no vence']
   activo boolean [not null, default: true]
 }
@@ -505,7 +524,7 @@ Table movimientos_saldo {
   id uuid [pk, default: `gen_random_uuid()`]
   cliente_id uuid [not null, ref: > clientes.id]
   tipo tipo_movimiento_saldo [not null]
-  monto integer [not null, note: 'Con signo: positivo suma saldo (recarga, reembolso), negativo lo descuenta (consumo)']
+  monto numeric(12,2) [not null, note: 'Con signo: positivo suma saldo (recarga, reembolso), negativo lo descuenta (consumo)']
   paquete_id uuid [ref: > paquetes_prepago.id, note: 'Solo en recargas por paquete']
   cuenta_id uuid [ref: > cuentas.id, note: 'Cuenta pagada con saldo (tipo consumo) o anulada (tipo reembolso)']
   turno_caja_id uuid [ref: > turnos_caja.id, note: 'Turno en el que se cobro la recarga']
@@ -521,8 +540,8 @@ Table creditos {
   id uuid [pk, default: `gen_random_uuid()`]
   cliente_id uuid [not null, ref: > clientes.id]
   cuenta_id uuid [not null, unique, ref: - cuentas.id]
-  monto_original integer [not null]
-  monto_pendiente integer [not null]
+  monto_original numeric(12,2) [not null]
+  monto_pendiente numeric(12,2) [not null]
   estado estado_credito [not null, default: 'pendiente']
   vence_en date
   creado_en timestamptz [not null, default: `now()`]
@@ -533,7 +552,7 @@ Table creditos {
 Table abonos_credito {
   id uuid [pk, default: `gen_random_uuid()`]
   credito_id uuid [not null, ref: > creditos.id]
-  monto integer [not null]
+  monto numeric(12,2) [not null]
   metodo metodo_pago [not null, note: 'Solo efectivo, qr o transferencia (CHECK)']
   turno_caja_id uuid [ref: > turnos_caja.id, note: 'Turno en el que se recibio el abono']
   creado_por_usuario_id uuid [not null, ref: > usuarios.id]
@@ -546,16 +565,18 @@ Table abonos_credito {
 
 Table promociones {
   id uuid [pk, default: `gen_random_uuid()`]
+  sucursal_id uuid [not null, ref: > sucursales.id, note: 'Debe coincidir con la sucursal de la tarifa']
   tarifa_id uuid [not null, ref: > tarifas.id, note: 'Tarifa a la que se aplica; la sucursal es la de la tarifa']
   nombre varchar(80) [not null, note: 'Ej: "Martes de 12 Bs la hora"']
-  descuento_hora integer [not null, note: 'Bs que se descuentan por cada hora jugada (ej. 3 si la hora baja de 15 a 12). Debe ser menor que tarifas.precio_hora (validar en el backend)']
+  descuento_hora numeric(12,2) [not null, note: 'Bs que se descuentan por cada hora jugada (ej. 3 si la hora baja de 15 a 12). Debe ser menor que tarifas.precio_hora (validar en el backend)']
   fecha_inicio date [not null]
   fecha_fin date [not null, note: 'Igual a fecha_inicio si la promocion es de un solo dia']
   dia_semana smallint [note: 'Opcional: 1 = lunes ... 7 = domingo. NULL = todos los dias del rango']
   activa boolean [not null, default: true]
   creado_en timestamptz [not null, default: `now()`]
 
-  Note: 'Se aplica a las sesiones que INICIAN dentro del rango de fechas, en el dia de la semana indicado y en una mesa con esa tarifa; la sesion guarda la promocion en sesiones_juego.promocion_id. Al finalizar la sesion, por cada tramo jugado en una mesa de esa tarifa: ahorro = tiempo a precio de lista - tiempo con (precio_hora - descuento_hora), ambos redondeados hacia arriba; la suma de los ahorros se registra como un descuentos con origen promocion_dia. Ej: 20 min a 15 Bs/h = 5 Bs; con promocion a 12 Bs/h = 4 Bs; ahorro 1 Bs. Una sesion tiene como maximo una promocion (si hay varias vigentes para la misma tarifa, se elige la de mayor descuento_hora). No se puede editar mientras haya sesiones activas que la usen.'
+
+  Note: 'Se aplica a las sesiones que INICIAN dentro del rango de fechas, en el dia de la semana indicado y en una mesa con esa tarifa; la sesion guarda la promocion en sesiones_juego.promocion_id. Al finalizar la sesion, por cada tramo jugado en una mesa de esa tarifa: ahorro = tiempo a precio de lista - tiempo con (precio_hora - descuento_hora), ambos redondeados a dos decimales; la suma de los ahorros se registra como un descuentos con origen promocion_dia. Ej: 20 min a 15 Bs/h = 5 Bs; con promocion a 12 Bs/h = 4 Bs; ahorro 1 Bs. Una sesion tiene como maximo una promocion (si hay varias vigentes para la misma tarifa, se elige la de mayor descuento_hora). No se puede editar mientras haya sesiones activas que la usen.'
 }
 
 
@@ -569,7 +590,7 @@ Table torneos {
   nombre varchar(120) [not null]
   formato formato_torneo [not null]
   inicia_en timestamptz [not null]
-  costo_inscripcion integer [not null, default: 0]
+  costo_inscripcion numeric(12,2) [not null, default: 0]
   estado estado_torneo [not null, default: 'borrador']
   creado_en timestamptz [not null, default: `now()`]
 }
@@ -578,7 +599,7 @@ Table inscripciones_torneo {
   id uuid [pk, default: `gen_random_uuid()`]
   torneo_id uuid [not null, ref: > torneos.id]
   cliente_id uuid [not null, ref: > clientes.id]
-  monto_pagado integer [note: 'NULL mientras no haya pagado la inscripcion']
+  monto_pagado numeric(12,2) [note: 'NULL mientras no haya pagado la inscripcion']
   metodo metodo_pago [note: 'Solo efectivo, qr o transferencia (CHECK). NULL si no ha pagado']
   turno_caja_id uuid [ref: > turnos_caja.id, note: 'Turno en el que se cobro la inscripcion']
   pagado_en timestamptz

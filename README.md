@@ -11,7 +11,7 @@ Monorepo con **Clean Architecture** en ambos lados, sobre **PostgreSQL**.
 |---|---|---|
 | Backend | Go + pgx + sqlc | `apps/api` |
 | Punto de venta | Flutter / Dart | `apps/pos` |
-| Contrato de la API | OpenAPI | `contracts/openapi.yaml` (pendiente) |
+| Contrato de la API | OpenAPI | `contracts/openapi.yaml` |
 | Cliente Dart generado | OpenAPI Generator | `packages/api_client` (pendiente) |
 | Infraestructura | Docker, PostgreSQL, backups | `infra/` |
 
@@ -50,6 +50,10 @@ make help
 # Levantar la base de datos
 make db-up
 
+# Aplicar migraciones y datos iniciales
+make migrate-up
+make seed
+
 # Ejecutar el backend
 make api-run
 
@@ -57,10 +61,18 @@ make api-run
 make pos-run
 ```
 
+## Roles
+
+- **Administrador**: configuración general, usuarios, tarifas, productos y reportes.
+- **Encargado**: supervisión de la operación y del personal de la sucursal.
+- **Cajero**: operación de mesas, consumos y cobros.
+
 ## Documentación
 
+- [`docs/architecture.md`](docs/architecture.md): visión completa del sistema.
 - [`docs/mvp.md`](docs/mvp.md): alcance del MVP, requisitos y mejoras futuras.
-- [`docs/estructure.md`](docs/estructure.md): arquitectura, capas y convenciones.
+- [`docs/estructure.md`](docs/estructure.md): estructura de código, capas y convenciones.
+- [`contracts/openapi.yaml`](contracts/openapi.yaml): contrato de la API.
 
 ## Estado del proyecto
 

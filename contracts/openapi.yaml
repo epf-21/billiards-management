@@ -1,0 +1,882 @@
+openapi: 3.0.3
+
+info:
+  title: Billiards Management API
+  description: API para la gestión de mesas, sesiones de juego, consumos y caja de un salón de billar.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: Entorno de desarrollo
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: table_busy
+        message:
+          type: string
+          example: La mesa seleccionada está ocupada.
+        details:
+          type: object
+          additionalProperties: true
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    Role:
+      type: string
+      enum:
+        - admin
+        - manager
+        - cashier
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - fullName
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        active:
+          type: boolean
+        isShared:
+          type: boolean
+
+    Rate:
+      type: object
+      required:
+        - id
+        - name
+        - hourlyRate
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Mesa estándar
+        hourlyRate:
+          type: number
+          format: double
+          multipleOf: 0.01
+          description: Precio por hora de juego.
+          example: 20.00
+
+    TableStatus:
+      type: string
+      enum:
+        - free
+        - busy
+        - reserved
+        - maintenance
+
+    Table:
+      type: object
+      required:
+        - id
+        - name
+        - rateId
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Mesa 1
+        rateId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TableStatus'
+
+    CreateTableRequest:
+      type: object
+      required:
+        - name
+        - rateId
+      properties:
+        name:
+          type: string
+          example: Mesa 10
+        rateId:
+          type: string
+          format: uuid
+
+    UpdateTableStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/TableStatus'
+
+    Pause:
+      type: object
+      required:
+        - startAt
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    SessionMode:
+      type: string
+      enum:
+        - free
+        - fixed_time
+
+    SessionStatus:
+      type: string
+      enum:
+        - active
+        - paused
+        - finished
+
+    Session:
+      type: object
+      required:
+        - id
+        - tableId
+        - mode
+        - status
+        - startedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tableId:
+          type: string
+          format: uuid
+        openedByUserId:
+          type: string
+          format: uuid
+        mode:
+          $ref: '#/components/schemas/SessionMode'
+        contractedMinutes:
+          type: integer
+          nullable: true
+          description: Solo en modo fixed_time.
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        pauses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pause'
+
+    StartSessionRequest:
+      type: object
+      required:
+        - tableId
+      properties:
+        tableId:
+          type: string
+          format: uuid
+        mode:
+          $ref: '#/components/schemas/SessionMode'
+        contractedMinutes:
+          type: integer
+          minimum: 1
+          description: Obligatorio solo cuando mode = fixed_time.
+
+    ChangeTableRequest:
+      type: object
+      required:
+        - tableId
+      properties:
+        tableId:
+          type: string
+          format: uuid
+
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - price
+        - stock
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Coca-Cola
+        category:
+          type: string
+          example: bebidas
+        price:
+          type: number
+          format: double
+          multipleOf: 0.01
+          description: Precio de venta.
+          example: 3.00
+        stock:
+          type: integer
+          example: 50
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - category
+        - price
+        - stock
+      properties:
+        name:
+          type: string
+          example: Agua mineral
+        category:
+          type: string
+          example: bebidas
+        price:
+          type: number
+          format: double
+          multipleOf: 0.01
+          example: 2.50
+        stock:
+          type: integer
+          example: 100
+
+    CreateConsumptionRequest:
+      type: object
+      required:
+        - sessionId
+        - productId
+        - quantity
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+
+    PaymentMethod:
+      type: string
+      enum:
+        - cash
+        - qr
+        - transfer
+
+    CreatePaymentRequest:
+      type: object
+      required:
+        - amount
+        - method
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          multipleOf: 0.01
+          description: Monto cobrado.
+          example: 15.00
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+
+    Payment:
+      type: object
+      required:
+        - id
+        - amount
+        - method
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          multipleOf: 0.01
+          example: 15.00
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        createdAt:
+          type: string
+          format: date-time
+
+    Account:
+      type: object
+      required:
+        - sessionId
+        - total
+        - breakdown
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        total:
+          type: number
+          format: double
+          multipleOf: 0.01
+          example: 25.00
+        breakdown:
+          type: object
+          required:
+            - time
+            - consumptions
+          properties:
+            time:
+              type: number
+              format: double
+              multipleOf: 0.01
+              example: 15.00
+            consumptions:
+              type: number
+              format: double
+              multipleOf: 0.01
+              example: 10.00
+
+    OpenCashShiftRequest:
+      type: object
+      required:
+        - openedAmount
+      properties:
+        openedAmount:
+          type: number
+          format: double
+          multipleOf: 0.01
+          description: Efectivo inicial.
+          example: 50.00
+
+    CashShiftStatus:
+      type: string
+      enum:
+        - open
+        - closed
+
+    CashShift:
+      type: object
+      required:
+        - id
+        - openedAt
+        - status
+        - openedAmount
+      properties:
+        id:
+          type: string
+          format: uuid
+        openedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        openedAmount:
+          type: number
+          format: double
+          multipleOf: 0.01
+          example: 50.00
+        closedAmount:
+          type: number
+          format: double
+          multipleOf: 0.01
+          example: 450.00
+        status:
+          $ref: '#/components/schemas/CashShiftStatus'
+
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Iniciar sesión
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/tables:
+    get:
+      summary: Listar mesas
+      tags:
+        - Tables
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de mesas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Table'
+    post:
+      summary: Crear mesa
+      tags:
+        - Tables
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+      responses:
+        '201':
+          description: Mesa creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '409':
+          description: Ya existe una mesa con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/tables/{tableId}:
+    get:
+      summary: Obtener mesa
+      tags:
+        - Tables
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Mesa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '404':
+          description: Mesa no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/tables/{tableId}/status:
+    patch:
+      summary: Cambiar estado de una mesa
+      tags:
+        - Tables
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTableStatusRequest'
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+
+  /api/v1/sessions:
+    post:
+      summary: Iniciar una sesión de juego
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSessionRequest'
+      responses:
+        '201':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '409':
+          description: La mesa no está disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/sessions/{sessionId}/pause:
+    post:
+      summary: Pausar una sesión
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sesión pausada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /api/v1/sessions/{sessionId}/resume:
+    post:
+      summary: Reanudar una sesión
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sesión reanudada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /api/v1/sessions/{sessionId}/change-table:
+    post:
+      summary: Cambiar la mesa de una sesión
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeTableRequest'
+      responses:
+        '200':
+          description: Mesa cambiada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /api/v1/sessions/{sessionId}/finish:
+    post:
+      summary: Finalizar una sesión
+      tags:
+        - Sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sesión finalizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /api/v1/products:
+    get:
+      summary: Listar productos
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      summary: Crear producto
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  /api/v1/consumptions:
+    post:
+      summary: Registrar un consumo en una sesión
+      tags:
+        - Consumptions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConsumptionRequest'
+      responses:
+        '201':
+          description: Consumo registrado y stock descontado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                    format: uuid
+                  productId:
+                    type: string
+                    format: uuid
+                  quantity:
+                    type: integer
+                  stock:
+                    type: integer
+                    description: Stock restante del producto
+        '409':
+          description: Stock insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cash/shifts:
+    post:
+      summary: Abrir caja
+      tags:
+        - Cash
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenCashShiftRequest'
+      responses:
+        '201':
+          description: Caja abierta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashShift'
+        '409':
+          description: Ya hay una caja abierta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cash/shifts/{shiftId}/close:
+    post:
+      summary: Cerrar caja
+      tags:
+        - Cash
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Caja cerrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashShift'
+
+  /api/v1/cash/payments:
+    post:
+      summary: Registrar un pago de una cuenta
+      tags:
+        - Cash
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Pago registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /api/v1/cash/accounts/{sessionId}:
+    get:
+      summary: Obtener el detalle de una cuenta
+      tags:
+        - Cash
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalle de la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  /api/v1/users:
+    get:
+      summary: Listar usuarios (solo administrador)
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '403':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

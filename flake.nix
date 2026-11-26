@@ -24,6 +24,11 @@
           # Docker
           docker
           docker-compose
+
+          # Base de datos (migraciones con goose)
+          postgresql
+          goose
+          sqlc
         ];
 
         shellHook = ''echo "Entorno de desarrollo activo"'';

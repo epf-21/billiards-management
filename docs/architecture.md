@@ -697,15 +697,15 @@ PostgreSQL será la base de datos principal.
 
 ### 10.2. Datos monetarios
 
-No utilizar `FLOAT` o `DOUBLE PRECISION` para representar importes monetarios.
+No utilizar `FLOAT` o `DOUBLE PRECISION` para representar importes monetarios, ni en la base de datos ni en el dominio.
 
-La convención del proyecto es representar el dinero como **enteros en la unidad mínima** (centavos), tanto en el dominio como en la API y en la base de datos:
+La convención del proyecto es usar **decimales de precisión fija**:
 
 ```sql
-BIGINT  -- importe en centavos
+NUMERIC(12, 2)
 ```
 
-Los valores monetarios se formatean a la moneda correspondiente solo en la capa de presentación. Si algún reporte o integración externa exige precisión decimal, se convertirá explícitamente en ese límite, nunca en el núcleo del negocio.
+En Go se representa con un tipo decimal (por ejemplo `shopspring/decimal` o `pgtype.Numeric`), nunca con `float64`. La moneda por defecto es `BOB`, configurable por sucursal.
 
 ### 10.3. Snapshots históricos
 
@@ -725,7 +725,7 @@ Una modificación posterior del catálogo o de las tarifas no debe alterar opera
 
 ### 10.4. Migraciones
 
-Las modificaciones del esquema deben gestionarse mediante migraciones versionadas.
+Las modificaciones del esquema deben gestionarse mediante migraciones versionadas con **goose**, en archivos SQL con las secciones `-- +goose Up` y `-- +goose Down`.
 
 Las migraciones deben:
 

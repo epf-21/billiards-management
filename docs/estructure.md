@@ -109,7 +109,7 @@ apps/api/
 │   │   │   └── repository.go
 │   │   ├── users/
 │   │   └── shared/
-│   │       ├── money/                # Tipo Money (enteros/centavos)
+│   │       ├── money/                # Tipo Money (decimales NUMERIC(12,2))
 │   │       ├── clock/                # Interfaz Clock (pruebas con tiempo)
 │   │       ├── apperror/             # Errores comunes (not found, conflict...)
 │   │       └── ids/                  # Generación de identificadores
@@ -192,7 +192,7 @@ apps/api/
 
 - **Las features no importan la infraestructura de otras features.** Si `cash` necesita datos de `sessions`, depende de una **interfaz** definida en su propio `application/` o `domain/`, y `bootstrap` la conecta.
 - **`internal/`** impide que otros proyectos importen este código.
-- **Dinero** siempre con el tipo de `domain/shared/money` (enteros), nunca `float`.
+- **Dinero** siempre con el tipo de `domain/shared/money` (decimales de precisión fija, respaldado por `NUMERIC(12,2)`), nunca `float`.
 - **El tiempo se calcula en el servidor**, a partir de timestamps guardados, usando la interfaz `Clock` para poder probarlo.
 - **Una transacción por caso de uso** cuando toque varias tablas (por ejemplo, cobrar una cuenta).
 
@@ -247,7 +247,7 @@ apps/pos/
 │   │   ├── configuration/
 │   │   └── shared/
 │   │       └── value_objects/
-│   │           └── money.dart        # Tipo Money (enteros)
+│   │           └── money.dart        # Tipo Money (decimales)
 │   │
 │   ├── application/                  # Casos de uso
 │   │   ├── auth/
@@ -331,7 +331,7 @@ apps/pos/
 
 - **El cliente de la API** viene de `packages/api_client`. Solo la capa `infrastructure/` lo usa; el dominio y la presentación nunca ven sus clases.
 - **El cronómetro en pantalla es solo visual**: la fuente de verdad es el servidor (hora de inicio y pausas). La app calcula lo mostrado a partir de esos datos.
-- **Dinero** con un tipo propio en `domain/shared/value_objects/money.dart` (enteros), no `double`.
+- **Dinero** con un tipo propio en `domain/shared/value_objects/money.dart` (decimales de precisión fija), no `double`.
 - **Estado en tiempo real**: la feature `tables` escucha el WebSocket y actualiza su estado; el resto de features lo consume vía providers.
 - **Código común** va en `presentation/shared/` o `domain/shared/`. Si más adelante se crea otra app Flutter, lo compartido se extrae a `packages/`.
 
@@ -391,18 +391,27 @@ infra/
 ├── deploy/                       # Scripts o configuración del servidor
 └── backups/                      # Scripts de respaldo y restauración
 
+apps/api/db/
+├── migrations/                   # goose: 00001_*.sql (-- +goose Up / Down)
+├── queries/                      # SQL para sqlc
+└── seeds/                        # Datos iniciales (roles, etc.)
+
 scripts/
-├── gen-client.sh                 # Genera packages/api_client desde OpenAPI
-├── migrate.sh                    # Aplica migraciones
-└── seed.sh                       # Carga datos iniciales
+└── gen-client.sh                 # Genera packages/api_client desde OpenAPI
 ```
 
-### Comandos sugeridos (`Makefile`)
+### Comandos (`Makefile`)
 
 | Comando | Acción |
 |---|---|
 | `make db-up` | Levanta PostgreSQL con Docker |
-| `make migrate` | Aplica las migraciones |
+| `make migrate-up` | Aplica todas las migraciones pendientes (goose) |
+| `make migrate-down` | Revierte la última migración |
+| `make migrate-status` | Muestra el estado de las migraciones |
+| `make migrate-version` | Muestra la versión aplicada |
+| `make migrate-create NAME=...` | Crea una migración secuencial con goose |
+| `make db-reset` | Borra el esquema, migra y carga datos iniciales |
+| `make seed` | Carga los datos iniciales |
 | `make sqlc` | Regenera el código de acceso a datos |
 | `make api-run` | Ejecuta el backend |
 | `make api-test` | Pruebas del backend |

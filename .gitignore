@@ -18,7 +18,7 @@ Thumbs.db
 # Builds y artefactos
 /build/
 /dist/
-/bin/
+bin/
 coverage.out
 *.test
 

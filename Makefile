@@ -2,6 +2,10 @@ API_DIR   := apps/api
 POS_DIR   := apps/pos
 COMPOSE   := docker compose -f infra/docker/compose.yml
 
+DATABASE_URL ?= postgres://postgres:postgres@localhost:5432/billiards?sslmode=disable
+MIGRATIONS_DIR := $(API_DIR)/db/migrations
+SEEDS_DIR      := $(API_DIR)/db/seeds
+
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -16,15 +20,45 @@ help: ## Muestra la lista de comandos disponibles
 # ----------------------------------------------------------------------------
 .PHONY: db-up
 db-up: ## Levanta PostgreSQL en Docker
-	$(COMPOSE) up -d database
+	$(COMPOSE) up -d postgres
 
 .PHONY: db-down
 db-down: ## Detiene los contenedores de desarrollo
 	$(COMPOSE) down
 
 .PHONY: migrate
-migrate: ## Aplica las migraciones de la base de datos
-	./scripts/migrate.sh
+migrate: migrate-up ## Alias de migrate-up
+
+.PHONY: migrate-up
+migrate-up: ## Aplica todas las migraciones pendientes
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" up
+
+.PHONY: migrate-down
+migrate-down: ## Revierte la última migración
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down
+
+.PHONY: migrate-status
+migrate-status: ## Muestra el estado de las migraciones
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" status
+
+.PHONY: migrate-version
+migrate-version: ## Muestra la versión actual de la base de datos
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" version
+
+.PHONY: migrate-create
+migrate-create: ## Crea una migración secuencial (NAME=nombre)
+	@test -n "$(NAME)" || { echo "Uso: make migrate-create NAME=nombre"; exit 1; }
+	goose -dir $(MIGRATIONS_DIR) -s create $(NAME) sql
+
+.PHONY: db-reset
+db-reset: ## Borra el esquema, reaplica migraciones y datos iniciales
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+	$(MAKE) migrate-up
+	$(MAKE) seed
+
+.PHONY: seed
+seed: ## Carga los datos iniciales
+	psql "$(DATABASE_URL)" -f $(SEEDS_DIR)/0001_roles.sql
 
 .PHONY: sqlc
 sqlc: ## Regenera el código de acceso a datos con sqlc
